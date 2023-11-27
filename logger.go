@@ -45,12 +45,17 @@ func NewLogger(c *Config) *Logger {
 	var colorfulWriters []io.Writer
 	var plainWriters []io.Writer
 
+	var output io.Writer
 	if c.Stdout != nil {
-		colorfulWriters = append(colorfulWriters, c.Stdout)
-		plainWriters = append(plainWriters, c.Stdout)
+		output = c.Stdout
 	} else {
-		colorfulWriters = append(colorfulWriters, os.Stdout)
-		plainWriters = append(plainWriters, os.Stdout)
+		output = os.Stdout
+	}
+
+	if c.EnableColors {
+		colorfulWriters = append(colorfulWriters, output)
+	} else {
+		plainWriters = append(plainWriters, output)
 	}
 
 	if c.Path != "" {
