@@ -47,8 +47,10 @@ func NewLogger(c *Config) *Logger {
 
 	if c.Stdout != nil {
 		colorfulWriters = append(colorfulWriters, c.Stdout)
+		plainWriters = append(plainWriters, c.Stdout)
 	} else {
 		colorfulWriters = append(colorfulWriters, os.Stdout)
+		plainWriters = append(plainWriters, os.Stdout)
 	}
 
 	if c.Path != "" {
