@@ -7,6 +7,7 @@ import (
 	"log"
 	"log/slog"
 	"os"
+	"time"
 
 	"github.com/evolidev/console/color"
 	"github.com/evolidev/filesystem"
@@ -227,6 +228,7 @@ func (l *Logger) Fatal(msg interface{}, args ...interface{}) {
 
 	l.plainLog.Log(ctx, LevelFatal, fmt.Sprintf(logFormat, msg), args...)
 
+	time.Sleep(1 * time.Second)
 	os.Exit(1)
 }
 
