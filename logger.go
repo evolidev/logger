@@ -1,11 +1,12 @@
 package logger
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log"
+	"log/slog"
 	"os"
-	"time"
 
 	"github.com/evolidev/console/color"
 	"github.com/evolidev/filesystem"
@@ -19,17 +20,30 @@ const successColor = 2
 const errorColor = 1
 const logColor = 61
 
+const (
+	LevelFatal   = slog.Level(12)
+	LevelSuccess = slog.Level(2)
+	LevelLog     = slog.Level(1)
+)
+
+var LevelNames = map[slog.Leveler]string{
+	LevelFatal:   "FATAL",
+	LevelSuccess: "SUCCESS",
+	LevelLog:     "LOG",
+}
+
 type Config struct {
 	EnableColors bool
 	Name         string
 	Stdout       io.Writer
 	Path         string
 	PrefixColor  int
+	OutputJSON   bool
 }
 
 type Logger struct {
-	log      *log.Logger
-	plainLog *log.Logger
+	log      *slog.Logger
+	plainLog *slog.Logger
 	config   *Config
 }
 
@@ -71,9 +85,34 @@ func NewLogger(c *Config) *Logger {
 		plainWriters = append(plainWriters, f)
 	}
 
+	opts := slog.HandlerOptions{
+		Level: slog.Level(-10),
+		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+			if a.Key == slog.LevelKey {
+				level := a.Value.Any().(slog.Level)
+				levelLabel, exists := LevelNames[level]
+				if !exists {
+					levelLabel = level.String()
+				}
+
+				a.Value = slog.StringValue(levelLabel)
+			}
+
+			return a
+		},
+	}
+
+	if c.OutputJSON {
+		return &Logger{
+			log:      slog.New(slog.NewJSONHandler(io.MultiWriter(colorfulWriters...), &opts)),
+			plainLog: slog.New(slog.NewJSONHandler(io.MultiWriter(plainWriters...), &opts)),
+			config:   c,
+		}
+	}
+
 	return &Logger{
-		log:      log.New(io.MultiWriter(colorfulWriters...), "", 0),
-		plainLog: log.New(io.MultiWriter(plainWriters...), "", 0),
+		log:      slog.New(slog.NewTextHandler(io.MultiWriter(colorfulWriters...), &opts)),
+		plainLog: slog.New(slog.NewTextHandler(io.MultiWriter(plainWriters...), &opts)),
 		config:   c,
 	}
 }
@@ -87,105 +126,106 @@ func NewLoggerByName(name string, colorCode int) *Logger {
 
 func (l *Logger) getPrefix() string {
 	var prefixColor = l.config.PrefixColor
-	currentTime := time.Now()
 	prefix := ""
 
 	if l.config.Name != "" {
 		prefix = color.Text(prefixColor, "["+l.config.Name+"]") + " "
 	}
 
-	return fmt.Sprintf(
-		"%s %s",
-		color.Text(timeColor, currentTime.Format("2006-01-02 15:04:05")),
-		prefix,
-	)
+	return prefix
 }
 
 func (l *Logger) getPlainPrefix() string {
-	currentTime := time.Now()
 	prefix := ""
 
 	if l.config.Name != "" {
 		prefix = "[" + l.config.Name + "]" + " "
 	}
 
-	return fmt.Sprintf(
-		"%s %s",
-		currentTime.Format("2006-01-02 15:04:05"),
-		prefix,
-	)
+	return prefix
 }
 
 func (l *Logger) Log(msg interface{}, args ...interface{}) {
-	l.log.Printf(
-		fmt.Sprintf("%s%s %s", l.getPrefix(), color.Text(logColor, "Log"), color.Text(textColor, msg)),
+	var ctx = context.Background()
+	l.log.Log(
+		ctx,
+		LevelLog,
+		fmt.Sprint(l.getPrefix(), color.Text(textColor, msg)),
 		args...,
 	)
 
-	l.plainLog.Printf(
-		fmt.Sprintf("%s%s %s", l.getPlainPrefix(), "Log", msg),
+	l.plainLog.Log(
+		ctx,
+		LevelLog,
+		fmt.Sprint(l.getPlainPrefix(), msg),
 		args...,
 	)
 }
 
 func (l *Logger) Info(msg interface{}, args ...interface{}) {
-	l.log.Printf(
-		fmt.Sprintf("%s%s %s", l.getPrefix(), color.Text(logColor, "Info"), color.Text(textColor, msg)),
+	l.log.Info(
+		fmt.Sprint(l.getPrefix(), color.Text(textColor, msg)),
 		args...,
 	)
 
-	l.plainLog.Printf(
-		fmt.Sprintf("%s%s %s", l.getPlainPrefix(), "Info", msg),
+	l.plainLog.Info(
+		fmt.Sprint(l.getPlainPrefix(), msg),
 		args...,
 	)
 }
 
 func (l *Logger) Success(msg interface{}, args ...interface{}) {
-	l.log.Printf(
-		fmt.Sprintf("%s%s %s", l.getPrefix(), color.Text(successColor, "Success"), color.Text(textColor, msg)),
+	var ctx = context.Background()
+	l.log.Log(
+		ctx,
+		LevelSuccess,
+		fmt.Sprint(l.getPrefix(), color.Text(textColor, msg)),
 		args...,
 	)
 
-	l.plainLog.Printf(
-		fmt.Sprintf("%s%s %s", l.getPlainPrefix(), "Success", msg),
+	l.plainLog.Log(
+		ctx,
+		LevelSuccess,
+		fmt.Sprint(l.getPlainPrefix(), msg),
 		args...,
 	)
 }
 
 func (l *Logger) Error(msg interface{}, args ...interface{}) {
-	l.log.Printf(
-		fmt.Sprintf("%s%s %s", l.getPrefix(), color.Text(errorColor, "Error"), color.Text(textColor, msg)),
+	l.log.Error(
+		fmt.Sprint(l.getPrefix(), color.Text(errorColor, "Error"), color.Text(textColor, msg)),
 		args...,
 	)
 
-	l.plainLog.Printf(
-		fmt.Sprintf("%s%s %s", l.getPlainPrefix(), "Error", msg),
+	l.plainLog.Error(
+		fmt.Sprint(l.getPlainPrefix(), msg),
 		args...,
 	)
 }
 
 func (l *Logger) Debug(msg interface{}, args ...interface{}) {
-	l.log.Printf(
-		fmt.Sprintf("%s%s %s", l.getPrefix(), color.Text(debugColor, "Debug"), color.Text(textColor, msg)),
+	l.log.Debug(
+		fmt.Sprint(l.getPrefix(), color.Text(textColor, msg)),
 		args...,
 	)
 
-	l.plainLog.Printf(
-		fmt.Sprintf("%s%s %s", l.getPlainPrefix(), "Debug", msg),
+	l.plainLog.Debug(
+		fmt.Sprint(l.getPlainPrefix(), msg),
 		args...,
 	)
 }
 
 func (l *Logger) Print(msg interface{}, args ...interface{}) {
-	l.log.Printf(fmt.Sprintf(logFormat, color.Text(textColor, msg)), args...)
+	l.log.Debug(color.Text(textColor, msg), args...)
 
-	l.plainLog.Printf(fmt.Sprintf(logFormat, msg), args...)
+	l.plainLog.Debug(fmt.Sprintf(logFormat, msg), args...)
 }
 
 func (l *Logger) Fatal(msg interface{}, args ...interface{}) {
-	l.log.Printf(fmt.Sprintf(logFormat, color.Text(textColor, msg)), args...)
+	ctx := context.Background()
+	l.log.Log(ctx, LevelFatal, color.Text(textColor, msg), args...)
 
-	l.plainLog.Printf(fmt.Sprintf(logFormat, msg), args...)
+	l.plainLog.Log(ctx, LevelFatal, fmt.Sprintf(logFormat, msg), args...)
 
 	os.Exit(1)
 }

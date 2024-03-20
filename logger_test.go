@@ -1,9 +1,11 @@
 package logger
 
 import (
+	"fmt"
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/evolidev/filesystem"
 	"github.com/stretchr/testify/assert"
@@ -41,14 +43,32 @@ func TestLogging(t *testing.T) {
 			Name:   "prefix",
 		})
 
+		logger.Debug("test")
+		logger.Error("test")
+		logger.Success("test")
+		logger.Log("test")
 		logger.Info("test")
 
-		// read from pipe
+		// read from pipe with timeout
 		buf := make([]byte, 1024)
-		n, _ := r.Read(buf)
+		timeout := time.After(5 * time.Second)
+
+		var result string
+
+		select {
+		case <-timeout:
+			// handle timeout
+			fmt.Println("Read operation timed out")
+		case <-time.After(1 * time.Second):
+			// read from pipe
+			n, _ := r.Read(buf)
+			// process the read data
+			result = string(buf[:n])
+			fmt.Println(result)
+		}
 
 		// check if message is logged
-		assert.True(t, strings.Contains(string(buf[:n]), "prefix"), "message should be logged with prefix")
+		assert.True(t, strings.Contains(result, "prefix"), "message should be logged with prefix")
 	})
 
 	t.Run("should log to a file", func(t *testing.T) {
