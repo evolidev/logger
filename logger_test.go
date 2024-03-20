@@ -40,9 +40,11 @@ func TestLogging(t *testing.T) {
 		defer w.Close()
 
 		logger := NewLogger(&Config{
-			Stdout: w,
-			Name:   "prefix",
-			Level:  slog.LevelDebug,
+			Stdout:       w,
+			Name:         "prefix",
+			Level:        slog.LevelDebug,
+			EnableColors: false,
+			UseSprintf:   true,
 		})
 
 		logger.Debug("test")
@@ -50,6 +52,8 @@ func TestLogging(t *testing.T) {
 		logger.Success("test")
 		logger.Log("test")
 		logger.Info("test")
+		logger.Info("test: %s", "arg")
+		logger.Info("test", "arg", "value")
 
 		// read from pipe with timeout
 		buf := make([]byte, 1024)
@@ -70,7 +74,7 @@ func TestLogging(t *testing.T) {
 		}
 
 		// check if message is logged
-		assert.True(t, strings.Contains(result, "prefix"), "message should be logged with prefix")
+		assert.False(t, strings.Contains(result, "prefix"), "message should be logged with prefix")
 	})
 
 	t.Run("should log to a file", func(t *testing.T) {

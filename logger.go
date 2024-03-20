@@ -7,7 +7,6 @@ import (
 	"log"
 	"log/slog"
 	"os"
-	"time"
 
 	"github.com/evolidev/console/color"
 	"github.com/evolidev/filesystem"
@@ -42,6 +41,7 @@ type Config struct {
 	OutputJSON   bool
 	Level        slog.Level
 	Handler      slog.Handler
+	UseSprintf   bool
 }
 
 type Logger struct {
@@ -58,6 +58,7 @@ func NewLogger(c *Config) *Logger {
 			Name:       "app",
 			Level:      slog.LevelDebug,
 			OutputJSON: true,
+			UseSprintf: false,
 		}
 	}
 
@@ -150,90 +151,41 @@ func (l *Logger) getPlainPrefix() string {
 	return prefix
 }
 
-func (l *Logger) Log(msg interface{}, args ...interface{}) {
-	var ctx = context.Background()
-	l.log.Log(
-		ctx,
-		LevelLog,
-		fmt.Sprint(l.getPrefix(), color.Text(textColor, msg)),
-		args...,
-	)
-
-	l.plainLog.Log(
-		ctx,
-		LevelLog,
-		fmt.Sprint(l.getPlainPrefix(), msg),
-		args...,
-	)
-}
-
 func (l *Logger) Info(msg interface{}, args ...interface{}) {
-	l.log.Info(
-		fmt.Sprint(l.getPrefix(), color.Text(textColor, msg)),
-		args...,
-	)
-
-	l.plainLog.Info(
-		fmt.Sprint(l.getPlainPrefix(), msg),
-		args...,
-	)
-}
-
-func (l *Logger) Success(msg interface{}, args ...interface{}) {
-	var ctx = context.Background()
-	l.log.Log(
-		ctx,
-		LevelSuccess,
-		fmt.Sprint(l.getPrefix(), color.Text(textColor, msg)),
-		args...,
-	)
-
-	l.plainLog.Log(
-		ctx,
-		LevelSuccess,
-		fmt.Sprint(l.getPlainPrefix(), msg),
-		args...,
-	)
+	l.write(slog.LevelInfo, msg, args...)
 }
 
 func (l *Logger) Error(msg interface{}, args ...interface{}) {
-	l.log.Error(
-		fmt.Sprint(l.getPrefix(), color.Text(errorColor, "Error"), color.Text(textColor, msg)),
-		args...,
-	)
-
-	l.plainLog.Error(
-		fmt.Sprint(l.getPlainPrefix(), msg),
-		args...,
-	)
+	l.write(slog.LevelError, msg, args...)
 }
 
 func (l *Logger) Debug(msg interface{}, args ...interface{}) {
-	l.log.Debug(
-		fmt.Sprint(l.getPrefix(), color.Text(textColor, msg)),
-		args...,
-	)
-
-	l.plainLog.Debug(
-		fmt.Sprint(l.getPlainPrefix(), msg),
-		args...,
-	)
-}
-
-func (l *Logger) Print(msg interface{}, args ...interface{}) {
-	l.log.Debug(color.Text(textColor, msg), args...)
-
-	l.plainLog.Debug(fmt.Sprintf(logFormat, msg), args...)
+	l.write(slog.LevelDebug, msg, args...)
 }
 
 func (l *Logger) Fatal(msg interface{}, args ...interface{}) {
+	l.write(LevelFatal, msg, args...)
+}
+
+func (l *Logger) Log(msg interface{}, args ...interface{}) {
+	l.write(LevelLog, msg, args...)
+}
+
+func (l *Logger) Success(msg interface{}, args ...interface{}) {
+	l.write(LevelSuccess, msg, args...)
+}
+
+func (l *Logger) write(level slog.Level, msg interface{}, args ...interface{}) {
 	ctx := context.Background()
-	l.log.Log(ctx, LevelFatal, color.Text(textColor, msg), args...)
-
-	l.plainLog.Log(ctx, LevelFatal, fmt.Sprintf(logFormat, msg), args...)
-
-	time.Sleep(1 * time.Second)
-	os.Exit(1)
+	if l.config.UseSprintf {
+		msg := fmt.Sprintf(fmt.Sprintf("%s%s", l.getPlainPrefix(), msg), args...)
+		l.log.Log(ctx, level, msg)
+		l.plainLog.Log(ctx, level, msg)
+	} else {
+		msg := fmt.Sprintf(fmt.Sprintf("%s%s", l.getPlainPrefix(), msg))
+		l.log.Log(ctx, level, msg, args...)
+		l.plainLog.Log(ctx, level, msg, args...)
+	}
 }
 
 var appLogger = NewLogger(nil)
