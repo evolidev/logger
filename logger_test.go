@@ -2,6 +2,7 @@ package logger
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"strings"
 	"testing"
@@ -41,6 +42,7 @@ func TestLogging(t *testing.T) {
 		logger := NewLogger(&Config{
 			Stdout: w,
 			Name:   "prefix",
+			Level:  slog.LevelDebug,
 		})
 
 		logger.Debug("test")

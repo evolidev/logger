@@ -40,6 +40,7 @@ type Config struct {
 	Path         string
 	PrefixColor  int
 	OutputJSON   bool
+	Level        slog.Level
 }
 
 type Logger struct {
@@ -53,7 +54,8 @@ var Verbose = 0
 func NewLogger(c *Config) *Logger {
 	if c == nil {
 		c = &Config{
-			Name: "app",
+			Name:  "app",
+			Level: slog.LevelDebug,
 		}
 	}
 
@@ -87,7 +89,7 @@ func NewLogger(c *Config) *Logger {
 	}
 
 	opts := slog.HandlerOptions{
-		Level: slog.Level(-10),
+		Level: c.Level,
 		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
 			if a.Key == slog.LevelKey {
 				level := a.Value.Any().(slog.Level)
