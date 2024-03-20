@@ -41,6 +41,7 @@ type Config struct {
 	PrefixColor  int
 	OutputJSON   bool
 	Level        slog.Level
+	Handler      slog.Handler
 }
 
 type Logger struct {
@@ -54,8 +55,9 @@ var Verbose = 0
 func NewLogger(c *Config) *Logger {
 	if c == nil {
 		c = &Config{
-			Name:  "app",
-			Level: slog.LevelDebug,
+			Name:       "app",
+			Level:      slog.LevelDebug,
+			OutputJSON: true,
 		}
 	}
 
