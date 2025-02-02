@@ -177,15 +177,38 @@ func (l *Logger) Success(msg interface{}, args ...interface{}) {
 
 func (l *Logger) write(level slog.Level, msg interface{}, args ...interface{}) {
 	ctx := context.Background()
+	prefix := l.getPlainPrefix()
+
 	if l.config.UseSprintf {
-		msg := fmt.Sprintf(fmt.Sprintf("%s%s", l.getPlainPrefix(), msg), args...)
+		msg := fmt.Sprintf(fmt.Sprintf("%s%s", prefix, msg), args...)
 		l.log.Log(ctx, level, msg)
 		l.plainLog.Log(ctx, level, msg)
-	} else {
-		msg := fmt.Sprintf(fmt.Sprintf("%s%s", l.getPlainPrefix(), msg))
-		l.log.Log(ctx, level, msg, args...)
-		l.plainLog.Log(ctx, level, msg, args...)
+		return
 	}
+
+	msgStr := fmt.Sprint(msg)
+	msgStr = prefix + msgStr
+
+	if len(args) == 0 {
+		l.log.Log(ctx, level, msgStr)
+		l.plainLog.Log(ctx, level, msgStr)
+		return
+	}
+
+	attrs := make([]slog.Attr, 0, len(args)/2)
+	for i := 0; i < len(args); i += 2 {
+		if i+1 >= len(args) {
+			break
+		}
+		key, ok := args[i].(string)
+		if !ok {
+			continue
+		}
+		attrs = append(attrs, slog.Any(key, args[i+1]))
+	}
+
+	l.log.LogAttrs(ctx, level, msgStr, attrs...)
+	l.plainLog.LogAttrs(ctx, level, msgStr, attrs...)
 }
 
 var appLogger = NewLogger(nil)
